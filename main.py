@@ -2,10 +2,11 @@
 
 import time
 import praw
-import string
 from termcolor import colored
 import pickle
 import sys
+
+from myUtils import *
 
 
 ignoreWords=[]
@@ -142,7 +143,6 @@ except:
 
 lastShow=time.time()
 lastScrub=time.time()
-table = str.maketrans({key: None for key in string.punctuation})
 for submission in subreddit.stream.submissions():
 	trendWords.totalPosts+=1
 	if time.time()-lastScrub>30:
@@ -155,12 +155,9 @@ for submission in subreddit.stream.submissions():
 		loadInerest()
 		trendWords.printlist(50)
 		lastShow=time.time()
-	
 	titleWords=submission.title.split(" ")
 	for w in titleWords:
-		word=w.strip()
-		word=word.lower()
-		word = word.translate(table)                          # Output: string without punctuation
+		word=stripWord(w)
 		if len(word)<3:
 			continue
 		if word not in ignoreWords:
@@ -168,5 +165,3 @@ for submission in subreddit.stream.submissions():
 		if word in triggerWords:
 			print("Trigger Logged:",word,"|")
 			logTrigger(submission)
-		#if word in interestWords:
-		#	logInterst(submission)
