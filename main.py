@@ -8,10 +8,10 @@ import sys
 
 from myUtils import *
 
-
 ignoreWords=[]
 #triggerWords=[]
 interestWords=[]
+
 
 def dumpData(data):
 	print("AUTO SAVING DATA")
@@ -92,16 +92,17 @@ class WordList():
 			perc=float(self.words[x].count)/float(self.totalPosts)
 			perc=str(perc*100)
 			perc=perc[:4]
+			out="["+str(x+1)+"]"+self.words[x].word+": "+"["+perc+"] "+self.words[x].mostRecent.url
 			if self.words[x].lastRank<0:
-				print(self.words[x].word+": ",perc,self.words[x].mostRecent.url)
+				print(out)
 			elif self.words[x].lastRank<x:
 				#red
-				print(colored((self.words[x].word+": "+perc+"  "+self.words[x].mostRecent.url),'red'))
+				print(colored(out,'red'))
 			elif self.words[x].lastRank>x:
 				#green
-				print(colored(self.words[x].word+": "+perc+"  "+self.words[x].mostRecent.url,'green'))
+				print(colored(out,'green'))
 			else:
-				print(self.words[x].word+": ",perc, self.words[x].mostRecent.url)
+				print(out)
 			self.words[x].lastRank=x
 		print("\n\n")
 		
@@ -127,41 +128,53 @@ class TrendWord():
 		self.lastRank=-1
 		self.mostRecent=None
 
-loadIgnore()
-loadTrigger()
-reddit=praw.Reddit('bot1')
-subreddit=reddit.subreddit("all")
+def run():
+	reddit=praw.Reddit('bot1')
+	subreddit=reddit.subreddit("all")
+	lastShow=time.time()
+	lastScrub=time.time()
+	for submission in subreddit.stream.submissions():
+		trendWords.totalPosts+=1
+		if time.time()-lastScrub>30:
+			trendWords.Scrub()
+			dumpData(trendWords)
+			lastScrub=time.time()
+		if time.time()-lastShow>5:
+			loadIgnore()
+			loadTrigger()
+			loadInerest()
+			trendWords.printlist(50)
+			lastShow=time.time()
+		titleWords=submission.title.split(" ")
+		for w in titleWords:
+			word=stripWord(w)
+			if len(word)<3:
+				continue
+			if word not in ignoreWords:
+				trendWords.addWord(word,submission)
+			if word in triggerWords:
+				print("Trigger Logged:",word,"|")
+				logTrigger(submission)
 
-
-try:
-	trendWords=loadData()
-	print("Data Loaded")
-except:
-	print("Failed to load data")
-	print(sys.exc_info())
-	trendWords=WordList()
-
-lastShow=time.time()
-lastScrub=time.time()
-for submission in subreddit.stream.submissions():
-	trendWords.totalPosts+=1
-	if time.time()-lastScrub>30:
-		trendWords.Scrub()
-		dumpData(trendWords)
-		lastScrub=time.time()
-	if time.time()-lastShow>5:
-		loadIgnore()
-		loadTrigger()
-		loadInerest()
-		trendWords.printlist(50)
-		lastShow=time.time()
-	titleWords=submission.title.split(" ")
-	for w in titleWords:
-		word=stripWord(w)
-		if len(word)<3:
-			continue
-		if word not in ignoreWords:
-			trendWords.addWord(word,submission)
-		if word in triggerWords:
-			print("Trigger Logged:",word,"|")
-			logTrigger(submission)
+if __name__=="__main__":
+	
+	loadIgnore()
+	loadTrigger()
+	
+	try:
+		trendWords=loadData()
+		print("Data Loaded")
+	except:
+		print("Failed to load data")
+		print(sys.exc_info())
+		trendWords=WordList()
+	while True:
+		try:
+			run()
+		except KeyboardInterrupt:
+			print("Shutting Down")
+			exit()
+		except:
+			print("Run Failed")
+			print(sys.exc_info())
+	
